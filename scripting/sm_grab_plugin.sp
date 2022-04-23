@@ -8,20 +8,21 @@
 float maxDistance[MAXPLAYERS];
 
 public Plugin myinfo = {
-    name        = "",
-    author      = "",
-    description = "",
-    version     = "0.0.0",
-    url         = ""
+    name        = "Grab props plugin",
+    author      = "kot",
+    description = "Plugin that adds grab command",
+    version     = "0.85",
 };
+ConVar g_hGrabAdminOnly;
 
 Handle grabTimer[MAXPLAYERS+1];
 int grabbed_prop = -1;
 
 public void OnPluginStart()
 {
-    RegAdminCmd("+grabtest", Command_Grab, ADMFLAG_ROOT);
-    RegAdminCmd("-grabtest", Command_Release, ADMFLAG_ROOT);
+	g_hGrabAdminOnly = CreateConVar("grab_admin_only", "1", "Is the grab plugin enabled for admins only", 0, true, 0.0, true, 1.0);
+	RegConsoleCmd("+grab", Command_Grab);
+	RegConsoleCmd("-grab", Command_Release);
 }
 
 public Action Command_Index(int client, int args)
@@ -34,9 +35,27 @@ public Action Command_Index(int client, int args)
 
 public Action Command_Grab(int client, int args)
 {
+	bool isAdmin = IsAdmin(client);
+	if(g_hGrabAdminOnly.IntValue == 1)
+	{
+		if (!isAdmin)
+		{
+			PrintToChat(client, "[SM] You do not have access to this command.");
+			return Plugin_Handled;
+		}
+	}
+
 	int targEnt = GetClientAimTarget(client, false);
 	if (targEnt == -1)
 		return Plugin_Handled;
+	if (targEnt < MaxClients && IsClientInGame(targEnt))
+	{
+		if(!isAdmin)
+		{
+			PrintToChat(client, "You cannot grab players!");
+			return Plugin_Handled;
+		}
+	}
 
 	float targEntOrigin[3];
 	GetEntPropVector(targEnt, Prop_Send, "m_vecOrigin", targEntOrigin);
@@ -100,4 +119,13 @@ public bool TraceRayTryToHit(int entity, int mask)
 	if((entity > 0 && entity <= MaxClients) || entity == grabbed_prop)
 		return false;
 	return true;
-}  
+}
+
+public bool IsAdmin(int client)
+{
+	if ( !GetAdminFlag( GetUserAdmin( client ), Admin_Generic, Access_Effective ) )
+	{
+		return false;
+	}
+	else return true;
+}
